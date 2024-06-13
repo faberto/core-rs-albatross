@@ -138,6 +138,7 @@ pub trait RequestCommon:
     type Response: Deserialize + Serialize + Send;
     const MAX_REQUESTS: u32;
     const TIME_WINDOW: Duration = DEFAULT_MAX_REQUEST_RESPONSE_TIME_WINDOW;
+    const CHANNEL_RESPONSE_SIZE: u16;
 }
 
 pub trait RequestSerialize: RequestCommon {
