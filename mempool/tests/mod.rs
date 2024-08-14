@@ -89,7 +89,7 @@ async fn send_txn_to_mempool(
     tokio::task::spawn(async move {
         for txn in transactions {
             txn_stream_tx
-                .send((txn.clone(), mock_id.clone()))
+                .send((txn.clone(), Some(mock_id.clone())))
                 .await
                 .unwrap();
         }
@@ -122,7 +122,7 @@ async fn send_control_txn_to_mempool(
     tokio::task::spawn(async move {
         for txn in transactions {
             txn_stream_tx
-                .send((txn.clone(), mock_id.clone()))
+                .send((txn.clone(), Some(mock_id.clone())))
                 .await
                 .unwrap();
         }
@@ -164,7 +164,7 @@ async fn multiple_start_stop_send(
     tokio::task::spawn(async move {
         for txn in txns {
             txn_stream_tx1
-                .send((txn.clone(), mock_id1.clone()))
+                .send((txn.clone(), Some(mock_id1.clone())))
                 .await
                 .unwrap();
         }
@@ -186,7 +186,7 @@ async fn multiple_start_stop_send(
     tokio::task::spawn(async move {
         for txn in txns {
             txn_stream_tx
-                .send((txn.clone(), mock_id.clone()))
+                .send((txn.clone(), Some(mock_id.clone())))
                 .await
                 .expect_err("Send should fail, executor is stopped");
         }
@@ -228,7 +228,7 @@ async fn multiple_start_stop_send(
     tokio::task::spawn(async move {
         for txn in txns {
             txn_stream_tx
-                .send((txn.clone(), mock_id.clone()))
+                .send((txn.clone(), Some(mock_id.clone())))
                 .await
                 .unwrap();
         }
