@@ -11,7 +11,10 @@ use nimiq_keys::{
     Address, Ed25519PublicKey as SchnorrPublicKey, KeyPair as SchnorrKeyPair,
     PrivateKey as SchnorrPrivateKey, SecureGenerate,
 };
-use nimiq_mempool::{config::MempoolConfig, mempool::Mempool, mempool_transactions::TxPriority};
+use nimiq_mempool::{
+    config::MempoolConfig, executor::PubsubIdOrPeerId, mempool::Mempool,
+    mempool_transactions::TxPriority,
+};
 use nimiq_network_mock::{MockHub, MockId, MockNetwork, MockPeerId};
 use nimiq_primitives::{coin::Coin, networks::NetworkId, policy::Policy};
 use nimiq_serde::{Deserialize, Serialize};
@@ -89,7 +92,7 @@ async fn send_txn_to_mempool(
     tokio::task::spawn(async move {
         for txn in transactions {
             txn_stream_tx
-                .send((txn.clone(), Some(mock_id.clone())))
+                .send((txn.clone(), PubsubIdOrPeerId::PubsubId(mock_id.clone())))
                 .await
                 .unwrap();
         }
@@ -122,7 +125,7 @@ async fn send_control_txn_to_mempool(
     tokio::task::spawn(async move {
         for txn in transactions {
             txn_stream_tx
-                .send((txn.clone(), Some(mock_id.clone())))
+                .send((txn.clone(), PubsubIdOrPeerId::PubsubId(mock_id.clone())))
                 .await
                 .unwrap();
         }
@@ -164,7 +167,7 @@ async fn multiple_start_stop_send(
     tokio::task::spawn(async move {
         for txn in txns {
             txn_stream_tx1
-                .send((txn.clone(), Some(mock_id1.clone())))
+                .send((txn.clone(), PubsubIdOrPeerId::PubsubId(mock_id1.clone())))
                 .await
                 .unwrap();
         }
@@ -186,7 +189,7 @@ async fn multiple_start_stop_send(
     tokio::task::spawn(async move {
         for txn in txns {
             txn_stream_tx
-                .send((txn.clone(), Some(mock_id.clone())))
+                .send((txn.clone(), PubsubIdOrPeerId::PubsubId(mock_id.clone())))
                 .await
                 .expect_err("Send should fail, executor is stopped");
         }
@@ -228,7 +231,7 @@ async fn multiple_start_stop_send(
     tokio::task::spawn(async move {
         for txn in txns {
             txn_stream_tx
-                .send((txn.clone(), Some(mock_id.clone())))
+                .send((txn.clone(), PubsubIdOrPeerId::PubsubId(mock_id.clone())))
                 .await
                 .unwrap();
         }
