@@ -67,7 +67,7 @@ fn it_can_produce_micro_blocks() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block.clone())),
+        Blockchain::push(bc, Block::Micro(block.clone()), &()),
         Ok(PushResult::Extended)
     );
 
@@ -112,7 +112,7 @@ fn it_can_produce_micro_blocks() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -136,7 +136,7 @@ fn it_can_produce_micro_blocks() {
 
     // the block justification is ok.
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
     assert_eq!(
@@ -158,7 +158,7 @@ fn it_can_produce_micro_blocks() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
     assert_eq!(
@@ -196,7 +196,7 @@ fn it_can_produce_macro_blocks() {
 
     let block = sign_macro_block(&voting_key(), macro_block.header, macro_block.body);
     assert_eq!(
-        Blockchain::push(bc, Block::Macro(block)),
+        Blockchain::push(bc, Block::Macro(block), &()),
         Ok(PushResult::Extended)
     );
 }
@@ -239,7 +239,7 @@ fn it_can_produce_macro_block_after_punishment() {
         macro_block.body,
     );
     assert_eq!(
-        Blockchain::push(bc, Block::Macro(block)),
+        Blockchain::push(bc, Block::Macro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -292,7 +292,7 @@ fn it_can_produce_macro_block_after_punishment() {
         macro_block.body,
     );
     assert_eq!(
-        Blockchain::push(bc, Block::Macro(block)),
+        Blockchain::push(bc, Block::Macro(block), &()),
         Ok(PushResult::Extended)
     );
 }
@@ -329,7 +329,7 @@ fn it_can_produce_election_blocks() {
         let block = sign_macro_block(&voting_key(), macro_block.header, macro_block.body);
 
         assert_eq!(
-            Blockchain::push(bc, Block::Macro(block)),
+            Blockchain::push(bc, Block::Macro(block), &()),
             Ok(PushResult::Extended)
         );
     }
@@ -379,7 +379,7 @@ fn it_can_produce_a_chain_with_txns() {
         );
 
         assert_eq!(
-            Blockchain::push(blockchain, Block::Macro(block)),
+            Blockchain::push(blockchain, Block::Macro(block), &()),
             Ok(PushResult::Extended)
         );
     }
@@ -421,7 +421,7 @@ fn it_can_revert_failed_transactions() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
     assert_eq!(
@@ -444,7 +444,7 @@ fn it_can_revert_failed_transactions() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -501,7 +501,7 @@ fn it_can_revert_failed_transactions() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block.clone())),
+        Blockchain::push(bc, Block::Micro(block.clone()), &()),
         Ok(PushResult::Extended)
     );
 
@@ -572,7 +572,7 @@ fn it_can_revert_create_staker_transaction() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
     assert_eq!(
@@ -595,7 +595,7 @@ fn it_can_revert_create_staker_transaction() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -638,7 +638,7 @@ fn it_can_revert_create_staker_transaction() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -703,7 +703,7 @@ fn it_can_revert_failed_vesting_contract_transaction() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
     assert_eq!(
@@ -768,7 +768,7 @@ fn it_can_revert_failed_vesting_contract_transaction() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block.clone())),
+        Blockchain::push(bc, Block::Micro(block.clone()), &()),
         Ok(PushResult::Extended)
     );
 
@@ -877,7 +877,7 @@ fn it_can_revert_reactivate_transaction() {
     assert_eq!(block_transactions[0], ExecutedTransaction::Ok(tx));
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -915,7 +915,7 @@ fn it_can_revert_reactivate_transaction() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -1002,7 +1002,7 @@ fn it_can_consume_all_validator_deposit() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -1048,7 +1048,7 @@ fn it_can_consume_all_validator_deposit() {
     assert_eq!(block_transactions[0], ExecutedTransaction::Err(invalid_tx));
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -1107,7 +1107,7 @@ fn it_can_consume_all_validator_deposit() {
     assert_eq!(block_transactions[0], ExecutedTransaction::Err(invalid_tx));
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -1221,7 +1221,7 @@ fn it_can_revert_failed_delete_validator() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -1266,7 +1266,7 @@ fn it_can_revert_failed_delete_validator() {
     assert_eq!(block_transactions[0], ExecutedTransaction::Err(invalid_tx));
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
@@ -1410,7 +1410,7 @@ fn it_can_revert_basic_and_create_contracts_txns() {
         .unwrap();
 
     assert_eq!(
-        Blockchain::push(bc, Block::Micro(block)),
+        Blockchain::push(bc, Block::Micro(block), &()),
         Ok(PushResult::Extended)
     );
 
