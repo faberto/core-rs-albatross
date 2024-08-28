@@ -524,7 +524,7 @@ where
                             &block_publisher,
                         )
                     } else {
-                        Blockchain::push(
+                        Blockchain::push_with_hook(
                             self.blockchain.upgradable_read(),
                             Block::Macro(block),
                             &block_publisher,
