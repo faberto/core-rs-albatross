@@ -168,7 +168,11 @@ impl<TValidatorNetwork: ValidatorNetwork + 'static> NextProduceMicroBlockEvent<T
             let result = if cfg!(feature = "trusted_push") {
                 Blockchain::trusted_push(blockchain, Block::Micro(block.clone()), &block_publisher)
             } else {
-                Blockchain::push(blockchain, Block::Micro(block.clone()), &block_publisher)
+                Blockchain::push_with_hook(
+                    blockchain,
+                    Block::Micro(block.clone()),
+                    &block_publisher,
+                )
             };
 
             if let Err(error) = &result {
@@ -282,7 +286,7 @@ impl<TValidatorNetwork: ValidatorNetwork + 'static> NextProduceMicroBlockEvent<T
                         &block_publisher,
                     )
                 } else {
-                    Blockchain::push(
+                    Blockchain::push_with_hook(
                         blockchain,
                         Block::Micro(skip_block.clone()),
                         &block_publisher,
