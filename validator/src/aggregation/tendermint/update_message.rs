@@ -9,13 +9,13 @@ use super::contribution::AggregateMessage;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct TendermintUpdate {
     pub message: TaggedAggregationMessage<AggregateMessage>,
-    pub height: u32,
+    pub block_number: u32,
 }
 
 impl RequestCommon for TendermintUpdate {
     type Kind = MessageMarker;
+    type Response = ();
     const TYPE_ID: u16 = 124;
     const MAX_REQUESTS: u32 = 500;
     const TIME_WINDOW: Duration = Duration::from_millis(500);
-    type Response = ();
 }

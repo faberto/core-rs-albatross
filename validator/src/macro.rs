@@ -5,10 +5,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use futures::{
-    future,
-    stream::{BoxStream, Stream, StreamExt},
-};
+use futures::stream::{BoxStream, Stream, StreamExt};
 use nimiq_block::MacroBlock;
 use nimiq_blockchain::{BlockProducer, Blockchain};
 use nimiq_keys::Ed25519Signature as SchnorrSignature;
@@ -87,16 +84,25 @@ where
     ) -> Self {
         let input = network
             .receive::<TendermintUpdate>()
-            .filter_map(move |(item, validator_id)| {
-                #[allow(clippy::if_same_then_else)]
-                future::ready(if item.height != block_height {
-                    None
-                    // Check that the aggregation messages specify the correct sender.
-                } else if item.message.aggregation.0.origin() != validator_id {
-                    None
-                } else {
-                    Some(item.message)
-                })
+            .filter_map(move |(item, validator_id)| async move {
+                // Check that the update is for the correct block.
+                if item.block_number != block_height {
+                    return None;
+                }
+
+                // Check that the update specifies the correct sender.
+                let update = &item.message.aggregation.0;
+                if update.origin() != validator_id {
+                    debug!(
+                        origin = update.origin(),
+                        sender = validator_id,
+                        level = update.level(),
+                        "Tendermint update received with wrong declared origin"
+                    );
+                    return None;
+                }
+
+                Some(item.message)
             })
             .boxed();
 

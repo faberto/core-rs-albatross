@@ -1,15 +1,9 @@
-use std::{
-    fmt,
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll},
-    time::Duration,
-};
+use std::{fmt, sync::Arc, time::Duration};
 
 use futures::{
-    future::FutureExt,
-    ready,
-    stream::{BoxStream, Stream, StreamExt},
+    future,
+    future::{BoxFuture, FutureExt},
+    stream::StreamExt,
 };
 use nimiq_block::{MultiSignature, SignedSkipBlockInfo, SkipBlockInfo, SkipBlockProof};
 use nimiq_bls::{AggregateSignature, KeyPair};
@@ -34,48 +28,6 @@ use serde::{Deserialize, Serialize};
 
 use super::{registry::ValidatorRegistry, verifier::MultithreadedVerifier};
 
-enum SkipBlockResult {
-    SkipBlock(SignedSkipBlockMessage),
-}
-
-/// Switch for incoming SkipBlockInfo.
-/// Keeps track of SkipBlockInfo for future Aggregations in order to be able to sync the state of this node with others
-/// in case it recognizes it is behind.
-struct InputStreamSwitch {
-    input: BoxStream<'static, SkipBlockUpdate>,
-    current_skip_block: SkipBlockInfo,
-}
-
-impl InputStreamSwitch {
-    fn new(input: BoxStream<'static, SkipBlockUpdate>, current_skip_block: SkipBlockInfo) -> Self {
-        Self {
-            input,
-            current_skip_block,
-        }
-    }
-}
-
-impl Stream for InputStreamSwitch {
-    type Item = LevelUpdate<SignedSkipBlockMessage>;
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        while let Some(message) = ready!(self.input.poll_next_unpin(cx)) {
-            if message.info.block_number != self.current_skip_block.block_number
-                || message.info.vrf_entropy != self.current_skip_block.vrf_entropy
-            {
-                // The LevelUpdate is not for this skip block and thus irrelevant.
-                // TODO If it is for a future skip block we might want to shortcut a HeadRequest here.
-                continue;
-            }
-
-            return Poll::Ready(Some(message.level_update));
-        }
-
-        // We have exited the loop, so poll_next() must have returned Poll::Ready(None).
-        // Thus, we terminate the stream.
-        Poll::Ready(None)
-    }
-}
-
 struct NetworkWrapper<TValidatorNetwork: ValidatorNetwork> {
     network: Arc<TValidatorNetwork>,
     tag: SkipBlockInfo,
@@ -90,27 +42,24 @@ impl<TValidatorNetwork: ValidatorNetwork + 'static> nimiq_handel::network::Netwo
     for NetworkWrapper<TValidatorNetwork>
 {
     type Contribution = SignedSkipBlockMessage;
+    type Error = TValidatorNetwork::Error;
 
-    fn send_to(
+    fn send_update(
         &self,
-        (msg, recipient): (LevelUpdate<Self::Contribution>, u16),
-    ) -> futures::future::BoxFuture<'static, ()> {
+        node_id: u16,
+        update: LevelUpdate<Self::Contribution>,
+    ) -> BoxFuture<'static, Result<(), Self::Error>> {
         // Create the update.
         let update_message = SkipBlockUpdate {
-            level_update: msg,
+            level_update: update,
             info: self.tag.clone(),
         };
 
-        // clone network so it can be moved into the future
-        let nw = Arc::clone(&self.network);
+        // Clone network so it can be moved into the future.
+        let network = Arc::clone(&self.network);
 
-        // create the send future and return it.
-        async move {
-            if let Err(error) = nw.send_to(recipient, update_message).await {
-                log::error!(?error, recipient, "Failed to send message");
-            }
-        }
-        .boxed()
+        // Create the request future and return it.
+        async move { network.send_to(node_id, update_message).await }.boxed()
     }
 }
 
@@ -142,10 +91,10 @@ struct SkipBlockUpdate {
 
 impl RequestCommon for SkipBlockUpdate {
     type Kind = MessageMarker;
+    type Response = ();
     const TYPE_ID: u16 = 123;
     const MAX_REQUESTS: u32 = 500;
     const TIME_WINDOW: Duration = Duration::from_millis(500);
-    type Response = ();
 }
 
 struct SkipBlockAggregationProtocol {
@@ -248,7 +197,7 @@ impl SkipBlockAggregation {
         active_validators: Validators,
         network: Arc<N>,
     ) -> (SkipBlockInfo, SkipBlockProof) {
-        // TODO expose this somewehere else so we don't need to clone here.
+        // TODO expose this somewhere else so we don't need to clone here.
         let weights = Arc::new(ValidatorRegistry::new(active_validators.clone()));
 
         let slots = active_validators.validators[validator_id as usize]
@@ -288,44 +237,66 @@ impl SkipBlockAggregation {
             skip_block_info.block_number,
         );
 
-        let input_switch = InputStreamSwitch::new(
-            Box::pin(network.receive::<SkipBlockUpdate>().map(|item| item.0)),
-            skip_block_info.clone(),
-        );
+        let current_skip_block = skip_block_info.clone();
+        let input_stream = network
+            .receive::<SkipBlockUpdate>()
+            .filter_map(move |(item, validator_id)| {
+                // Check that the update is for the current skip block aggregation.
+                if item.info != current_skip_block {
+                    return future::ready(None);
+                }
 
-        let aggregation = Aggregation::new(
+                // Check that the update specifies the correct sender.
+                let update = &item.level_update;
+                if update.origin() != validator_id {
+                    debug!(
+                        origin = update.origin(),
+                        sender = validator_id,
+                        level = update.level(),
+                        "Skip block update received with wrong declared origin"
+                    );
+                    return future::ready(None);
+                }
+
+                future::ready(Some(item.level_update))
+            })
+            .boxed();
+
+        let mut aggregation = Aggregation::new(
             protocol,
             Config::default(),
             own_contribution,
-            Box::pin(input_switch),
+            input_stream,
             NetworkWrapper::new(skip_block_info.clone(), Arc::clone(&network)),
         );
 
-        let mut stream = aggregation.map(SkipBlockResult::SkipBlock);
-        while let Some(msg) = stream.next().await {
-            match msg {
-                SkipBlockResult::SkipBlock(sb_msg) => {
-                    if let Some(aggregate_weight) = weights.signature_weight(&sb_msg) {
-                        info!(
-                            aggregate_weight,
-                            signers = %sb_msg.contributors(),
-                            "New skip block aggregate weight {}/{} with signers {}",
-                            aggregate_weight,
-                            policy::Policy::TWO_F_PLUS_ONE,
-                            &sb_msg.contributors(),
-                        );
+        while let Some(msg) = aggregation.next().await {
+            let Some(aggregate_weight) = weights.signature_weight(&msg) else {
+                error!(
+                    signers = %msg.contributors(),
+                    block_number = skip_block_info.block_number,
+                    "Failed to determine skip block aggregate signature weight"
+                );
+                continue;
+            };
 
-                        // Check if the combined weight of the aggregation is at least 2f+1.
-                        if aggregate_weight >= policy::Policy::TWO_F_PLUS_ONE as usize {
-                            // Create SkipBlockProof out of the aggregate
-                            let skip_block_proof = SkipBlockProof { sig: sb_msg.proof };
-                            trace!("Skip block completed, proof={:?}", &skip_block_proof);
+            info!(
+                aggregate_weight,
+                signers = %msg.contributors(),
+                block_number = skip_block_info.block_number,
+                "New skip block aggregate weight {}/{} with signers {}",
+                aggregate_weight,
+                policy::Policy::TWO_F_PLUS_ONE,
+                &msg.contributors(),
+            );
 
-                            // return the SkipBlockProof
-                            return (skip_block_info, skip_block_proof);
-                        }
-                    }
-                }
+            // Check if the combined weight of the aggregation is at least 2f+1.
+            if aggregate_weight >= policy::Policy::TWO_F_PLUS_ONE as usize {
+                // Create SkipBlockProof from the aggregate.
+                let skip_block_proof = SkipBlockProof { sig: msg.proof };
+
+                // Return the SkipBlockProof.
+                return (skip_block_info, skip_block_proof);
             }
         }
 
