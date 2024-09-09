@@ -10,6 +10,7 @@ use futures_timer::Delay;
 use instant::Instant;
 use libp2p::{
     identity::Keypair,
+    multiaddr::Protocol,
     swarm::{
         handler::{
             ConnectionEvent, DialUpgradeError, FullyNegotiatedInbound, FullyNegotiatedOutbound,
@@ -173,6 +174,12 @@ impl Handler {
         peer_contact_book: Arc<RwLock<PeerContactBook>>,
         peer_address: Multiaddr,
     ) -> Self {
+        if let Some(peer_contact) = peer_contact_book.write().get(&peer_id) {
+            if let Some(protocol_addr) = protocol_part(&peer_address) {
+                peer_contact.set_protocol_addr(protocol_addr);
+            }
+        }
+
         Self {
             peer_id,
             config,
@@ -242,6 +249,23 @@ impl Handler {
                 .wake();
         }
     }
+}
+
+/// Extract the `/ip4/`,`/ip6/`, `/dns4/` or `/dns6/` protocol part from a `Multiaddr`
+pub(crate) fn protocol_part(addr: &Multiaddr) -> Option<Multiaddr> {
+    addr.iter()
+        .find(|p| {
+            matches!(
+                p,
+                Protocol::Dns(_)
+                    | Protocol::Dns4(_)
+                    | Protocol::Dns6(_)
+                    | Protocol::Ip4(_)
+                    | Protocol::Ip6(_)
+            )
+        })
+        .map(|p| Some(p.into()))
+        .unwrap_or(None)
 }
 
 impl ConnectionHandler for Handler {

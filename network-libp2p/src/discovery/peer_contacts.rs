@@ -183,6 +183,7 @@ impl SignedPeerContact {
 /// Meta information attached to peer contact info objects. This is meant to be mutable and change over time.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct PeerContactMeta {
+    protocol_addr: Option<Multiaddr>,
     score: f64,
 }
 
@@ -207,7 +208,10 @@ impl From<SignedPeerContact> for PeerContactInfo {
         Self {
             peer_id,
             contact,
-            meta: RwLock::new(PeerContactMeta { score: 0. }),
+            meta: RwLock::new(PeerContactMeta {
+                score: 0.,
+                protocol_addr: None,
+            }),
         }
     }
 }
@@ -270,6 +274,19 @@ impl PeerContactInfo {
     /// Sets the peer score
     pub fn set_score(&self, score: f64) {
         self.meta.write().score = score;
+    }
+
+    /// Gets the protocol address of the peer. For example `/ip4/x.x.x.x` or `/dns4/foo.bar`
+    pub fn get_protocol_addr(&self) -> Option<Multiaddr> {
+        self.meta.read().protocol_addr.clone()
+    }
+
+    /// Sets the protocol address of the peer once
+    pub fn set_protocol_addr(&self, addr: Multiaddr) {
+        self.meta.write().protocol_addr.get_or_insert_with(|| {
+            debug!(peer_id = %self.peer_id, %addr, "Set protocol address for peer");
+            addr
+        });
     }
 }
 

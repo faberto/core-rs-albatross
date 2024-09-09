@@ -28,7 +28,7 @@ use rand::{seq::IteratorRandom, thread_rng};
 use void::Void;
 
 use super::Error;
-use crate::discovery::peer_contacts::PeerContactBook;
+use crate::discovery::{handler, peer_contacts::PeerContactBook};
 
 /// Current state of connections and peers for connection limits
 #[derive(Clone, Debug)]
@@ -625,12 +625,11 @@ impl Behaviour {
         self.peer_ids.mark_banned(peer_id);
         debug!(%peer_id, "Banned peer");
 
-        // Mark its addresses as banned if we have them
+        // Mark its protocol address as banned if we have it
         if let Some(contact) = self.contacts.read().get(&peer_id) {
-            let addresses = contact.addresses();
-            for address in addresses {
-                self.addresses.mark_banned(address.clone());
-                debug!(%address, "Banned address");
+            if let Some(protocol_addr) = contact.get_protocol_addr() {
+                debug!(%protocol_addr, "Banned address");
+                self.addresses.mark_banned(protocol_addr);
             }
         }
     }
@@ -890,9 +889,11 @@ impl NetworkBehaviour for Behaviour {
         _local_addr: &Multiaddr,
         remote_addr: &Multiaddr,
     ) -> Result<(), ConnectionDenied> {
-        if self.addresses.is_banned(remote_addr.clone()) {
-            debug!(%remote_addr, "Address is banned");
-            return Err(ConnectionDenied::new(Error::BannedIp));
+        if let Some(protocol_part) = handler::protocol_part(remote_addr) {
+            if self.addresses.is_banned(protocol_part) {
+                debug!(%remote_addr, "Address is banned");
+                return Err(ConnectionDenied::new(Error::BannedIp));
+            }
         }
 
         // Get IP from multiaddress if it exists.
