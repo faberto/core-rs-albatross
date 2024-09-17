@@ -218,7 +218,7 @@ impl Network {
         }
 
         if let Ok(request_id) = output_rx.await {
-            let result = match timeout(Req::TIME_WINDOW.mul_f32(1.5f32), response_rx).await {
+            let result = match timeout(Req::TIME_WINDOW + Req::TIME_WINDOW / 2, response_rx).await {
                 Ok(res) => res,
                 Err(_) => {
                     warn!(
