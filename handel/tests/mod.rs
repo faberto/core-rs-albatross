@@ -1,10 +1,7 @@
-use std::{fmt::Formatter, sync::Arc, time::Duration};
+use std::{fmt::Formatter, future::Future, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use futures::{
-    future::{BoxFuture, FutureExt},
-    StreamExt,
-};
+use futures::StreamExt;
 use nimiq_bls::PublicKey;
 use nimiq_collections::bitset::BitSet;
 use nimiq_handel::{
@@ -188,7 +185,7 @@ impl<N: NetworkInterface<PeerId = MockPeerId>> Network for NetworkWrapper<N> {
         &self,
         node_id: u16,
         update: LevelUpdate<Self::Contribution>,
-    ) -> BoxFuture<'static, Result<(), Self::Error>> {
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send + 'static {
         let update = Update(update);
         let network = Arc::clone(&self.0);
         async move {
@@ -206,7 +203,6 @@ impl<N: NetworkInterface<PeerId = MockPeerId>> Network for NetworkWrapper<N> {
                 Err(OutboundRequestError::DialFailure.into())
             }
         }
-        .boxed()
     }
 }
 

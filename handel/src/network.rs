@@ -6,10 +6,7 @@ use std::{
     time::Duration,
 };
 
-use futures::{
-    future::{BoxFuture, FutureExt},
-    stream::StreamExt,
-};
+use futures::{future::FutureExt, stream::StreamExt};
 use instant::Instant;
 use nimiq_collections::BitSet;
 use nimiq_utils::{stream::FuturesUnordered, WakerExt as _};
@@ -28,7 +25,7 @@ pub trait Network: Unpin + Send + Sync + 'static {
         &self,
         node_id: u16,
         update: LevelUpdate<Self::Contribution>,
-    ) -> BoxFuture<'static, Result<(), Self::Error>>;
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send + 'static;
 }
 
 #[derive(Clone)]
@@ -197,7 +194,7 @@ impl<TNetwork: Network + Unpin> Future for LevelUpdateSender<TNetwork> {
 
 #[cfg(test)]
 mod test {
-    use std::{sync::Arc, task::Context, time::Duration};
+    use std::{future::Future, sync::Arc, task::Context, time::Duration};
 
     use futures::{future::BoxFuture, FutureExt};
     use nimiq_collections::BitSet;
@@ -236,14 +233,13 @@ mod test {
             &self,
             node_id: u16,
             update: LevelUpdate<Self::Contribution>,
-        ) -> BoxFuture<'static, Result<(), Self::Error>> {
+        ) -> impl Future<Output = Result<(), Self::Error>> + Send + 'static {
             self.0.lock().push((update, node_id));
 
             async move {
                 nimiq_time::sleep(Duration::from_millis(100)).await;
                 Ok(())
             }
-            .boxed()
         }
     }
 
