@@ -254,11 +254,12 @@ where
         let end_block_number = head_block.block_number();
         let end_timestamp = head_block.timestamp();
 
-        // Calculate the block number at the start of the window.
-        // Make sure this never points before the genesis block.
+        // Calculate the block number at the start of the window. Make sure this points to at least
+        // one block after the genesis block, as the genesis timestamp can be unreliable.
         let start_block_number =
             end_block_number.saturating_sub(Self::PRODUCER_TIMEOUT_WINDOW_SIZE);
-        let mut start_block_number = u32::max(start_block_number, Policy::genesis_block_number());
+        let mut start_block_number =
+            u32::max(start_block_number, Policy::genesis_block_number() + 1);
 
         // We might not have the block at `start_block_number` in our database. If it's missing,
         // move up the chain to the next succeeding macro block(s), adjusting `start_block_number`
