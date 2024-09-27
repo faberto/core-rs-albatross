@@ -1,4 +1,5 @@
 use std::{
+    collections::{HashSet, VecDeque},
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, Waker},
@@ -13,10 +14,11 @@ use libp2p::{
     swarm::{
         handler::{
             ConnectionEvent, DialUpgradeError, FullyNegotiatedInbound, FullyNegotiatedOutbound,
+            ProtocolSupport,
         },
         ConnectionHandler, ConnectionHandlerEvent, Stream, SubstreamProtocol,
     },
-    Multiaddr, PeerId,
+    Multiaddr, PeerId, StreamProtocol,
 };
 use nimiq_hash::Blake2bHash;
 use nimiq_network_interface::peer_info::Services;
@@ -162,6 +164,8 @@ pub struct Handler {
 
     /// Waker used when opening a substream.
     waker: Option<Waker>,
+
+    events: VecDeque<ConnectionHandlerEvent<DiscoveryProtocol, (), HandlerOutEvent>>,
 }
 
 impl Handler {
@@ -189,6 +193,7 @@ impl Handler {
             inbound: None,
             outbound: None,
             waker: None,
+            events: VecDeque::new(),
         }
     }
 
@@ -274,6 +279,15 @@ impl ConnectionHandler for Handler {
                 }
                 self.inbound = Some(protocol);
                 self.check_initialized();
+
+                let mut hs = HashSet::new();
+                hs.insert(StreamProtocol::new("/libp2p/autonat/2/dial-request"));
+                hs.insert(StreamProtocol::new("/libp2p/autonat/2/dial-back"));
+
+                self.events
+                    .push_back(ConnectionHandlerEvent::ReportRemoteProtocols(
+                        ProtocolSupport::Added(hs),
+                    ));
             }
             ConnectionEvent::FullyNegotiatedOutbound(FullyNegotiatedOutbound {
                 protocol, ..
@@ -286,9 +300,24 @@ impl ConnectionHandler for Handler {
                 }
                 self.outbound = Some(protocol);
                 self.check_initialized();
+
+                let mut hs = HashSet::new();
+                hs.insert(StreamProtocol::new("/libp2p/autonat/2/dial-request"));
+                hs.insert(StreamProtocol::new("/libp2p/autonat/2/dial-back"));
+
+                self.events
+                    .push_back(ConnectionHandlerEvent::ReportRemoteProtocols(
+                        ProtocolSupport::Added(hs),
+                    ));
             }
             ConnectionEvent::DialUpgradeError(DialUpgradeError { error, .. }) => {
                 error!(%error, "inject_dial_upgrade_error");
+            }
+            ConnectionEvent::RemoteProtocolsChange(change) => {
+                info!(?change, "RemoteProtocolsChange");
+            }
+            ConnectionEvent::LocalProtocolsChange(change) => {
+                info!(?change, "LocalProtocolsChange");
             }
             _ => {}
         }
@@ -304,6 +333,10 @@ impl ConnectionHandler for Handler {
         &mut self,
         cx: &mut Context,
     ) -> Poll<ConnectionHandlerEvent<Self::OutboundProtocol, (), HandlerOutEvent>> {
+        if let Some(event) = self.events.pop_front() {
+            return Poll::Ready(event);
+        }
+
         loop {
             // Check if we hit the state transition timeout
             if let Some(ref mut state_timeout) = self.state_timeout {

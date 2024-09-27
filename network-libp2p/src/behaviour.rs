@@ -34,7 +34,8 @@ pub struct Behaviour {
     pub discovery: discovery::Behaviour,
     pub dht: kad::Behaviour<MemoryStore>,
     pub gossipsub: gossipsub::Behaviour,
-    pub autonat: autonat::Behaviour,
+    pub autonat_server: autonat::v2::server::Behaviour,
+    pub autonat_client: autonat::v2::client::Behaviour,
     pub ping: ping::Behaviour,
     pub request_response: request_response::Behaviour<MessageCodec>,
 }
@@ -101,7 +102,14 @@ impl Behaviour {
         if config.autonat_allow_non_global_ips {
             autonat_config.only_global_ips = false;
         }
-        let autonat = autonat::Behaviour::new(peer_id, autonat_config);
+
+        // Autonat server behaviour
+        let autonat_server = autonat::v2::server::Behaviour::new(rand::rngs::OsRng);
+        // Autonat client behaviour
+        let autonat_client = autonat::v2::client::Behaviour::new(
+            rand::rngs::OsRng,
+            autonat::v2::client::Config::default(),
+        );
 
         // Connection limits behaviour
         let limits = connection_limits::ConnectionLimits::default()
@@ -119,7 +127,8 @@ impl Behaviour {
             ping,
             pool,
             request_response,
-            autonat,
+            autonat_client,
+            autonat_server,
             connection_limits,
         }
     }

@@ -652,29 +652,29 @@ impl Behaviour {
 
         // Ignore connection if another connection to this peer already exists.
         // TODO Do we still want to subject it to the IP limit checks?
-        if other_established > 0 {
-            debug!(
-                %peer_id,
-                connections = other_established,
-                "Already have connections established to this peer",
-            );
-            // We have more than one connection to the same peer. Deterministically
-            // choose which connection to close: close the connection only if the
-            // other peer ID is less than our own peer ID value.
-            // Note: We don't track all of the connection IDs and if the latest
-            // connection ID we get is from a peer ID with a lower value, we
-            // close it. If not, we optimistically expect that the other peer
-            // does it.
-            if *peer_id <= self.own_peer_id {
-                // Notify the handler that the connection must be closed
-                self.actions.push_back(ToSwarm::CloseConnection {
-                    peer_id: *peer_id,
-                    connection: CloseConnection::One(*connection_id),
-                });
-                self.waker.wake();
-            }
-            return;
-        }
+        // if other_established > 0 {
+        //     debug!(
+        //         %peer_id,
+        //         connections = other_established,
+        //         "Already have connections established to this peer",
+        //     );
+        //     // We have more than one connection to the same peer. Deterministically
+        //     // choose which connection to close: close the connection only if the
+        //     // other peer ID is less than our own peer ID value.
+        //     // Note: We don't track all of the connection IDs and if the latest
+        //     // connection ID we get is from a peer ID with a lower value, we
+        //     // close it. If not, we optimistically expect that the other peer
+        //     // does it.
+        //     if *peer_id <= self.own_peer_id {
+        //         // Notify the handler that the connection must be closed
+        //         self.actions.push_back(ToSwarm::CloseConnection {
+        //             peer_id: *peer_id,
+        //             connection: CloseConnection::One(*connection_id),
+        //         });
+        //         self.waker.wake();
+        //     }
+        //     return;
+        // }
 
         // Get IP from multiaddress if it exists.
         let ip_info = self.get_ip_info_from_multiaddr(address);

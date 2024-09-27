@@ -6,7 +6,7 @@ use instant::Instant;
 #[cfg(all(target_family = "wasm", not(feature = "tokio-websocket")))]
 use libp2p::websocket_websys;
 use libp2p::{
-    autonat::{self, OutboundFailure},
+    autonat::OutboundFailure,
     core::{
         self,
         muxing::StreamMuxerBox,
@@ -376,21 +376,27 @@ fn handle_event(
 
         SwarmEvent::Behaviour(event) => {
             match event {
-                behaviour::BehaviourEvent::Autonat(event) => match event {
-                    autonat::Event::InboundProbe(event) => {
-                        log::trace!(?event, "Autonat inbound probe");
-                    }
-                    autonat::Event::OutboundProbe(event) => {
-                        log::trace!(?event, "Autonat outbound probe");
-                    }
-                    autonat::Event::StatusChanged { old, new } => {
-                        log::debug!(?old, ?new, "Autonat status changed");
-                        if new == autonat::NatStatus::Private {
-                            log::warn!("Couldn't detect a public reachable address. Validator network operations won't be possible");
-                            log::warn!("You may need to find a relay to enable validator network operations");
-                        }
-                    }
-                },
+                // behaviour::BehaviourEvent::Autonat(event) => match event {
+                //     autonat::Event::InboundProbe(event) => {
+                //         log::trace!(?event, "Autonat inbound probe");
+                //     }
+                //     autonat::Event::OutboundProbe(event) => {
+                //         log::trace!(?event, "Autonat outbound probe");
+                //     }
+                //     autonat::Event::StatusChanged { old, new } => {
+                //         log::debug!(?old, ?new, "Autonat status changed");
+                //         if new == autonat::NatStatus::Private {
+                //             log::warn!("Couldn't detect a public reachable address. Validator network operations won't be possible");
+                //             log::warn!("You may need to find a relay to enable validator network operations");
+                //         }
+                //     }
+                // },
+                behaviour::BehaviourEvent::AutonatClient(event) => {
+                    info!(?event, "Autonat client");
+                }
+                behaviour::BehaviourEvent::AutonatServer(event) => {
+                    info!(?event, "Autonat server");
+                }
                 behaviour::BehaviourEvent::ConnectionLimits(_) => {}
                 behaviour::BehaviourEvent::Dht(event) => {
                     match event {
